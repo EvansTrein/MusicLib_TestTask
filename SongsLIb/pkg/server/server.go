@@ -1,7 +1,7 @@
 package server
 
 import (
-	"SongsLib/SongsLIb/cmd/database"
+	"SongsLib/SongsLIb/pkg/database"
 	"log"
 )
 
@@ -12,6 +12,7 @@ func InitServer() {
 		log.Fatal("Database connection error: ", errDatabase)
 	} else {
 		log.Println("Successful connection to the database")
+		// тут сделать миграцию БД
 	}
 }
 
