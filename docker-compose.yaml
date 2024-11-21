@@ -1,0 +1,26 @@
+version: '3.1'
+
+services:
+  db_SongsLib:
+      container_name: db_SongsLib
+      environment:
+        POSTGRES_USER: ${POSTGRES_USER}
+        POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      image: postgres:15-alpine
+      ports:
+        - ${POSTGRES_PORT}:${POSTGRES_PORT}
+      command:
+        - 'postgres'
+        - '-c'
+        - 'port=${POSTGRES_PORT}'
+      volumes:
+        - db_SongsLib_vol:/var/lib/postgresql/data
+      networks:
+        - server_net
+
+volumes: 
+  db_SongsLib_vol: {}
+
+networks:
+  server_net:
+    driver: bridge
