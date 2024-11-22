@@ -5,7 +5,7 @@ import (
 	"github.com/swaggo/gin-swagger"
     "github.com/swaggo/files"
 
-	_ "SongsLib/SongsLib/docs"
+	_ "SongsLib/SongsApi/docs"
 )
 
 func InitRotes() {

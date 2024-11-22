@@ -1,0 +1,18 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Тестовое задание от Effective Mobile",
+        "title": "Онлайн библиотека песен🎶",
+        "contact": {
+            "name": "Evans Trein",
+            "email": "evanstrein@icloud.com"
+        },
+        "version": "0.1"
+    },
+    "host": "localhost:3000",
+    "paths": {},
+    "externalDocs": {
+        "description": "OpenAPI",
+        "url": "https://swagger.io/resources/open-api/"
+    }
+}

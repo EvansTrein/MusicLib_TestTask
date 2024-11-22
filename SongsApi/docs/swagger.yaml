@@ -1,0 +1,13 @@
+externalDocs:
+  description: OpenAPI
+  url: https://swagger.io/resources/open-api/
+host: localhost:3000
+info:
+  contact:
+    email: evanstrein@icloud.com
+    name: Evans Trein
+  description: Тестовое задание от Effective Mobile
+  title: "Онлайн библиотека песен\U0001F3B6"
+  version: "0.1"
+paths: {}
+swagger: "2.0"

@@ -1,7 +1,7 @@
 package server
 
 import (
-	"SongsLib/SongsLIb/pkg/database"
+	"SongsLib/SongsApi/pkg/database"
 	"log"
 )
 
