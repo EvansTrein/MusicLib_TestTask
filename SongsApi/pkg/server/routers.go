@@ -12,7 +12,7 @@ func InitRotes() {
 	router := gin.Default()
 
 	// Получение данных библиотеки с фильтрацией по всем полям и пагинацией
-	router.GET("/songs", SongHandler)
+	router.GET("/songs", SongsHandler)
 
 	// Получение текста песни с пагинацией по куплетам
 	router.GET("/song/:id/couplets", SongCoupletsHandler)

@@ -4,7 +4,7 @@ import "gorm.io/gorm"
 
 type Song struct {
 	gorm.Model
-	Group       string `gorm:"not null"`
+	MusicGroup  string `gorm:"not null"`
 	SongName    string `gorm:"not null"`
 	ReleaseDate string
 	Text        string
@@ -12,7 +12,7 @@ type Song struct {
 }
 
 type SongData struct {
-	Group       string `json:"group"`
+	MusicGroup  string `json:"group"`
 	SongName    string `json:"song"`
 	ReleaseDate string `json:"releaseDate"`
 	Text        string `json:"text"`
@@ -20,6 +20,6 @@ type SongData struct {
 }
 
 type RequestData struct {
-	Group string `json:"group" binding:"required"`
-	Song  string `json:"song" binding:"required"`
+	MusicGroup string `json:"group" binding:"required"`
+	Song       string `json:"song" binding:"required"`
 }
