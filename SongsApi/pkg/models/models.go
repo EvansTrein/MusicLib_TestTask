@@ -10,3 +10,8 @@ type Song struct {
 	Text        string
 	Link        string
 }
+
+type RequestData struct {
+	Group string `json:"group"`
+    Song  string `json:"song"`
+}

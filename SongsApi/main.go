@@ -1,6 +1,7 @@
 package main
 
 import (
+	"SongsLib/SongsApi/pkg/logging"
 	"SongsLib/SongsApi/pkg/server"
 )
 
@@ -16,7 +17,9 @@ import (
 // @externalDocs.description  OpenAPI
 // @externalDocs.url          https://swagger.io/resources/open-api/
 
+
 func init() {
+	logging.InitLogger()
 	server.InitServer()
 }
 
