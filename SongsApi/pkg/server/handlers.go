@@ -4,60 +4,95 @@ import (
 	"SongsLib/SongsApi/pkg/database"
 	myLog "SongsLib/SongsApi/pkg/logging"
 	"SongsLib/SongsApi/pkg/models"
-	"strconv"
+	"SongsLib/SongsApi/pkg/utils"
 
 	"github.com/gin-gonic/gin"
 )
 
 func SongsHandler(ctx *gin.Context) {
-	var songs []models.Song
-	databaseQuery := map[string]interface{}{} // сюда собирать фильтры для запроса в БД
+	var songs []models.Song                   // переменная для возврата данных
+	var params = make(map[string]string)      // сюда соберем параметры из запроса для их дальнейшей проверки
+	databaseQuery := map[string]interface{}{} // сюда будем собирать фильтры для запроса в БД
 
+	// получаем url запроса и оставляем только его путь
 	urlStr := ctx.Request.URL.String()
 	myLog.LogInfo.Println("Совершен запрос:", urlStr)
 
-	// получаем параметры фильтрации из запроса
-	group := ctx.Query("group")
-	songName := ctx.Query("songName")
-	releaseDate := ctx.Query("releaseDate")
-	text := ctx.Query("text")
-	link := ctx.Query("link")
-
-	// получаем параметры пагинации из запроса
-	offsetStr := ctx.Query("offset")
-	offset, err := strconv.Atoi(offsetStr)
-	if err != nil {
-		myLog.LogErr.Println("В параметр offset пришел не integer")
-		ctx.JSON(400, gin.H{"error": "Invalid query parameters, 'offset' must be positive integer."})
-		return
-	}
-	
-	limitStr := ctx.Query("limit")
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil {
-		myLog.LogErr.Println("В параметр limit пришел не integer")
-		ctx.JSON(400, gin.H{"error": "Invalid query parameters, 'limit' must be positive integer."})
+	// если запрос вообще без параметров, то возвращаем все данные и выходим из функции
+	if urlStr == "/songs" {
+		database.DB.Find(&songs)
+		myLog.LogInfo.Println("Запрошены все данные")
+		ctx.JSON(200, gin.H{"allData": songs})
 		return
 	}
 
-	myLog.LogInfo.Println(group)
-	myLog.LogInfo.Println(songName)
-	myLog.LogInfo.Println(releaseDate)
-	myLog.LogInfo.Println(text)
-	myLog.LogInfo.Println(link)
-	myLog.LogInfo.Println(limit)
-	myLog.LogInfo.Println(offset)
+	// получаем параметры из запроса
+	ctx.BindQuery(&params)
+	myLog.LogInfo.Println("Параметры запроса:", params)
 
-	databaseQuery["music_group"] = group
-	// databaseQuery["song_name"] = songName
-	database.DB.Where(databaseQuery).Find(&songs)
-
-	// database.DB.Where("music_group = ?", group).Offset(offset).Limit(limit).Find(&songs)
-
-	for _, el := range songs {
-		myLog.LogInfo.Println(el.MusicGroup, el.SongName)
+	// проверяем параметры для фильтрации
+	if value, ok := params["group"]; ok {
+		databaseQuery["music_group"] = value
 	}
 
+	if value, ok := params["song"]; ok {
+		databaseQuery["song_name"] = value
+	}
+
+	if value, ok := params["releaseDate"]; ok {
+		databaseQuery["release_date"] = value
+	}
+
+	if value, ok := params["text"]; ok {
+		databaseQuery["text"] = value
+	}
+
+	if value, ok := params["link"]; ok {
+		databaseQuery["link"] = value
+	}
+
+	myLog.LogInfo.Println("Параметры после проверки:", databaseQuery)
+	// проверяем, что данные могут применяться для фильтрации (т.е. в запрсое были поля нашей БД)
+	if len(databaseQuery) == 0 {
+		myLog.LogErr.Println("Переданные параметры запроса невалидны")
+		ctx.JSON(400, gin.H{"error": "The passed request parameters are invalid"})
+		return
+	}
+
+	// создаем запрос в БД на основе фильтров
+	dbQuery := database.DB.Where(databaseQuery)
+
+	// получаем параметры пагинации из запроса и проверяем их
+	if value, ok := params["offset"]; ok {
+		offset, err := utils.CheckOffset(value)
+		if err != nil {
+			myLog.LogErr.Println("В параметр offset пришел не integer")
+			ctx.JSON(400, gin.H{"error": "Invalid query parameters, 'offset' must be positive integer."})
+			return
+		} else {
+			dbQuery.Offset(offset) // добавляем к запросу offset если он есть и прошел проверку
+		}
+	}
+
+	if value, ok := params["limit"]; ok {
+		limit, err := utils.CheckLimit(value)
+		if err != nil {
+			myLog.LogErr.Println("В параметр limit пришел не integer")
+			ctx.JSON(400, gin.H{"error": "Invalid query parameters, 'limit' must be positive integer."})
+			return
+		} else {
+			dbQuery.Limit(limit) // добавляем к запросу limit если он есть и прошел проверку
+		}
+	}
+
+	// выполяем запрос к БД
+	if err := dbQuery.Find(&songs).Error; err != nil {
+		myLog.LogErr.Println("Ошибка при выполнении запроса к базе данных:", err)
+		ctx.JSON(500, gin.H{"error": "Error when executing a database query"})
+		return
+	}
+
+	myLog.LogInfo.Println("Данные успешно отправлены")
 	ctx.JSON(200, gin.H{"data": songs})
 }
 
