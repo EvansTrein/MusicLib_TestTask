@@ -5,14 +5,17 @@ import (
 	myLog "SongsLib/SongsApi/pkg/logging"
 	"SongsLib/SongsApi/pkg/models"
 	"SongsLib/SongsApi/pkg/utils"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 )
 
 func SongsHandler(ctx *gin.Context) {
-	var songs []models.Song                   // переменная для возврата данных
-	var params = make(map[string]string)      // сюда соберем параметры из запроса для их дальнейшей проверки
-	databaseQuery := map[string]interface{}{} // сюда будем собирать фильтры для запроса в БД
+	var songs []models.Song                      // переменная для возврата данных
+	var params = make(map[string]string)         // сюда соберем параметры из запроса для их дальнейшей проверки
+	databaseQuery := map[string]interface{}{}    // сюда будем собирать фильтры для запроса в БД
+	dbQuery := database.DB.Model(&models.Song{}) // создаем запрос для БД, который будем наполнять параметрами
+	var wg sync.WaitGroup                        // счетчик для контроля горутин
 
 	// получаем url запроса и оставляем только его путь
 	urlStr := ctx.Request.URL.String()
@@ -30,44 +33,44 @@ func SongsHandler(ctx *gin.Context) {
 	ctx.BindQuery(&params)
 	myLog.LogInfo.Println("Параметры запроса:", params)
 
-	// проверяем параметры для фильтрации
-	if value, ok := params["group"]; ok {
-		databaseQuery["music_group"] = value
-	}
+	// запускаем проверку парметров запроса в отдельной горутинее и идем далее по другим делам
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if value, ok := params["group"]; ok {
+			databaseQuery["music_group"] = value
+			delete(params, "group")
+		}
 
-	if value, ok := params["song"]; ok {
-		databaseQuery["song_name"] = value
-	}
+		if value, ok := params["song"]; ok {
+			databaseQuery["song_name"] = value
+			delete(params, "song")
+		}
 
-	if value, ok := params["releaseDate"]; ok {
-		databaseQuery["release_date"] = value
-	}
+		if value, ok := params["releaseDate"]; ok {
+			databaseQuery["release_date"] = value
+			delete(params, "releaseDate")
+		}
 
-	if value, ok := params["text"]; ok {
-		databaseQuery["text"] = value
-	}
+		if value, ok := params["text"]; ok {
+			databaseQuery["text"] = value
+			delete(params, "text")
+		}
 
-	if value, ok := params["link"]; ok {
-		databaseQuery["link"] = value
-	}
-
-	myLog.LogInfo.Println("Параметры после проверки:", databaseQuery)
-	// проверяем, что данные могут применяться для фильтрации (т.е. в запрсое были поля нашей БД)
-	if len(databaseQuery) == 0 {
-		myLog.LogErr.Println("Переданные параметры запроса невалидны")
-		ctx.JSON(400, gin.H{"error": "The passed request parameters are invalid"})
-		return
-	}
-
-	// создаем запрос в БД на основе фильтров
-	dbQuery := database.DB.Where(databaseQuery)
+		if value, ok := params["link"]; ok {
+			databaseQuery["link"] = value
+			delete(params, "link")
+		}
+	}()
 
 	// получаем параметры пагинации из запроса и проверяем их
 	if value, ok := params["offset"]; ok {
-		offset, err := utils.CheckOffset(value)
+		delete(params,"offset")
+		offset, err := utils.CheckOffset(value) // проверка значения offset и преобразование его к типу int (из запроса мы получили string)
 		if err != nil {
 			myLog.LogErr.Println("В параметр offset пришел не integer")
 			ctx.JSON(400, gin.H{"error": "Invalid query parameters, 'offset' must be positive integer."})
+			wg.Wait() // если offset не прошел проверку, то ждем все горутины, прежде чем выйти из функции
 			return
 		} else {
 			dbQuery.Offset(offset) // добавляем к запросу offset если он есть и прошел проверку
@@ -75,25 +78,45 @@ func SongsHandler(ctx *gin.Context) {
 	}
 
 	if value, ok := params["limit"]; ok {
-		limit, err := utils.CheckLimit(value)
+		delete(params,"limit")
+		limit, err := utils.CheckLimit(value) // проверка значения limit и преобразование его к типу int (из запроса мы получили string)
 		if err != nil {
 			myLog.LogErr.Println("В параметр limit пришел не integer")
 			ctx.JSON(400, gin.H{"error": "Invalid query parameters, 'limit' must be positive integer."})
+			wg.Wait() // если limit не прошел проверку, то ждем все горутины, прежде чем выйти из функции
 			return
 		} else {
 			dbQuery.Limit(limit) // добавляем к запросу limit если он есть и прошел проверку
 		}
 	}
 
-	// выполяем запрос к БД
-	if err := dbQuery.Find(&songs).Error; err != nil {
-		myLog.LogErr.Println("Ошибка при выполнении запроса к базе данных:", err)
-		ctx.JSON(500, gin.H{"error": "Error when executing a database query"})
+	wg.Wait() // ждем все горутины
+
+	myLog.LogInfo.Println("Параметры после проверки:", databaseQuery)
+	// проверяем, что данные могут применяться для фильтрации (т.е. в запрсое были ТОЛЬКО разрешенные поля нашей БД)
+	if len(params) != 0 {
+		// ранее, мы убирали параметры, которые прошли проверку, но если мы попали сюда, значит в параметрах пришло не то, что ожидалось
+		// даже если в параметрах были и разрешенные и неразрешенные вместе,
+		// всеравно - делать лишний запрос к БД с фильтрами, которые БД не ожидает, я не стал
+		myLog.LogErr.Println("Переданные параметры запроса невалидны")
+		ctx.JSON(400, gin.H{"error": "The passed request parameters are invalid"})
 		return
+	} else if len(databaseQuery) > 0 {
+		dbQuery.Where(databaseQuery) // добавляем фильтры к запросу в БД, если они есть
 	}
 
-	myLog.LogInfo.Println("Данные успешно отправлены")
-	ctx.JSON(200, gin.H{"data": songs})
+	// выполяем запрос к БД с отражением в консоли SQL запроса
+	err := dbQuery.Debug().Find(&songs).Error
+	if err != nil {
+		ctx.JSON(500, gin.H{"error": "Internal Server Error"})
+		return
+	} else if len(songs) == 0 {
+		ctx.JSON(404, gin.H{"error": "Record not found"})
+		return
+	} else {
+		myLog.LogInfo.Println("Данные успешно отправлены")
+		ctx.JSON(200, gin.H{"data": songs})
+	}
 }
 
 func SongCoupletsHandler(ctx *gin.Context) {
