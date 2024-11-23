@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func SongsHandler(ctx *gin.Context) {
@@ -65,7 +66,7 @@ func SongsHandler(ctx *gin.Context) {
 
 	// получаем параметры пагинации из запроса и проверяем их
 	if value, ok := params["offset"]; ok {
-		delete(params,"offset")
+		delete(params, "offset")
 		offset, err := utils.CheckOffset(value) // проверка значения offset и преобразование его к типу int (из запроса мы получили string)
 		if err != nil {
 			myLog.LogErr.Println("В параметр offset пришел не integer")
@@ -78,7 +79,7 @@ func SongsHandler(ctx *gin.Context) {
 	}
 
 	if value, ok := params["limit"]; ok {
-		delete(params,"limit")
+		delete(params, "limit")
 		limit, err := utils.CheckLimit(value) // проверка значения limit и преобразование его к типу int (из запроса мы получили string)
 		if err != nil {
 			myLog.LogErr.Println("В параметр limit пришел не integer")
@@ -106,8 +107,8 @@ func SongsHandler(ctx *gin.Context) {
 	}
 
 	// выполяем запрос к БД с отражением в консоли SQL запроса
-	err := dbQuery.Debug().Find(&songs).Error
-	if err != nil {
+	result := dbQuery.Debug().Find(&songs)
+	if result.Error != nil {
 		ctx.JSON(500, gin.H{"error": "Internal Server Error"})
 		return
 	} else if len(songs) == 0 {
@@ -162,5 +163,20 @@ func UpdateSongHandler(ctx *gin.Context) {
 }
 
 func DeleteSongHandler(ctx *gin.Context) {
+	var song models.Song  // структура для песни которую будем удалять
+	id := ctx.Param("id") // получаем id из url
 
+	// выполяем запрос к БД для поиска нужной песни по id
+	if result := database.DB.Where("id = ?", id).First(&song); result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			ctx.JSON(404, gin.H{"error": "User not found"})
+		} else {
+			ctx.JSON(500, gin.H{"error": "Internal Server Error"})
+		}
+		return
+	}
+
+	// выполяем запрос к БД с отражением в консоли SQL запроса
+	database.DB.Unscoped().Delete(&song)
+	ctx.JSON(200, gin.H{"message": "user deleted successfully"})
 }
