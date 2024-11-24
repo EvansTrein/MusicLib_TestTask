@@ -23,3 +23,9 @@ type RequestData struct {
 	MusicGroup string `json:"group" binding:"required"`
 	Song       string `json:"song" binding:"required"`
 }
+
+type DataFromAPI struct {
+	ReleaseDate string `json:"releaseDate" binding:"required"`
+	Text        string `json:"text" binding:"required"`
+	Link        string `json:"link" binding:"required"`
+}

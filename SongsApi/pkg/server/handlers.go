@@ -5,6 +5,10 @@ import (
 	myLog "SongsLib/SongsApi/pkg/logging"
 	"SongsLib/SongsApi/pkg/models"
 	"SongsLib/SongsApi/pkg/utils"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/url"
 	"reflect"
 	"strings"
 	"sync"
@@ -239,7 +243,63 @@ func SongCoupletsHandler(ctx *gin.Context) {
 }
 
 func CreateSongHandler(ctx *gin.Context) {
+	var songDb models.Song             // переменная для хранения структуры, которую позже будем записывать в postgres
+	var req models.RequestData         // переменная для запроса пришедшего на севрвер
+	var dataFromAPI models.DataFromAPI // переменная для данных от стороннего API
+	urlAPI := "http://localhost:7000"  // адрес API для запроса 
 
+	urlStr := ctx.Request.URL.String()
+	myLog.LogInfo.Println("Совершен запрос:", urlStr)
+
+	// парсим данные из тела запроса
+	err := ctx.BindJSON(&req)
+	if err != nil {
+		myLog.LogErr.Println("ERROR: Invalid request body")
+		ctx.JSON(400, gin.H{"error": "Incorrect data in body"})
+		return
+	} else {
+		myLog.LogInfo.Printf("на сервер пришли данные - Group: %s, Song: %s", req.MusicGroup, req.Song)
+	}
+
+	// при добавлении сделать запрос в АПИ, описанного сваггером
+	// задаем url для запроса, убираем пробелы если они есть
+	url := fmt.Sprintf("%s/info?group=%s&song=%s",urlAPI, url.QueryEscape(req.MusicGroup), url.QueryEscape(req.Song))
+
+	sendReqToAPI, err := http.Get(url)
+	myLog.LogInfo.Println("запрос к стороннему API", url)
+	if err != nil {
+		myLog.LogErr.Println("Не удалось отправить запрос к стороннему API")
+		ctx.JSON(500, gin.H{"error": "Failed to send request to third party API"})
+		return
+	}
+	defer sendReqToAPI.Body.Close()
+
+	resultErr := json.NewDecoder(sendReqToAPI.Body).Decode(&dataFromAPI)
+	if resultErr != nil {
+		myLog.LogErr.Println("ошибка преобразования полученных данных с стороннего API в JSON")
+		ctx.JSON(500, gin.H{"error": "error of converting received data from third-party API to JSON"})
+		return
+	}
+
+	myLog.LogInfo.Println("от стороннего API пришли данные:", dataFromAPI)
+
+	// сохраняем данные в поля таблицы
+	songDb.MusicGroup = req.MusicGroup
+	songDb.SongName = req.Song
+	songDb.ReleaseDate = dataFromAPI.ReleaseDate
+	songDb.Text = dataFromAPI.Text
+	songDb.Link = dataFromAPI.Link
+
+	// создаем запись в таблице
+	entryDb := database.DB.Create(&songDb)
+	if entryDb.Error != nil {
+		myLog.LogErr.Println("Ошибка при записи в базу данных", entryDb.Error)
+		ctx.JSON(500, gin.H{"error": "failed to save to the database"})
+		return
+	} else {
+		myLog.LogInfo.Println("Песня сохранена успешно")
+		ctx.JSON(201, gin.H{"message": "The song has been successfully created"})
+	}
 }
 
 func CreateDefaultSongHandler(ctx *gin.Context) {
@@ -250,7 +310,7 @@ func CreateDefaultSongHandler(ctx *gin.Context) {
 	myLog.LogInfo.Println("Совершен запрос:", urlStr)
 
 	// парсим данные из тела запроса
-	err := ctx.ShouldBindJSON(&req)
+	err := ctx.BindJSON(&req)
 	if err != nil {
 		myLog.LogErr.Println("ERROR: Invalid request body")
 		ctx.JSON(404, gin.H{"error": "Incorrect data in body"})
