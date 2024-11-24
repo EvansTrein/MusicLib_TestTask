@@ -6,6 +6,7 @@ import (
     "github.com/swaggo/files"
 
 	_ "SongsLib/SongsApi/docs"
+	"SongsLib/SongsApi/pkg/envs"
 )
 
 func InitRotes() {
@@ -32,5 +33,5 @@ func InitRotes() {
 	// Сгенерировать сваггер на реализованное АПИ
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	router.Run(":3000")
+	router.Run(":" + envs.ServerEnvs.SERVER_PORT)
 }

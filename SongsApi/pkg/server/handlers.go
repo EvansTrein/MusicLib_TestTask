@@ -192,7 +192,7 @@ func SongCoupletsHandler(ctx *gin.Context) {
 	// если запрошенен только start - дудет выведено от start и до конца
 	// если запрошенен только end - дудет выведено от начала и до end ВКЛЮЧИТЕЛЬНО
 	if okStart && okEnd {
-		myLog.LogInfo.Println("Были запрошено 2 праметра, начало и конец")
+		myLog.LogInfo.Println("Было запрошено 2 праметра, начало и конец")
 		switch {
 		case startValue+1 > len(data):
 			myLog.LogErr.Println("Были запрошены нивалидные номера куплетов")
