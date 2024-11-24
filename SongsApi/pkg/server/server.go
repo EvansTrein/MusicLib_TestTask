@@ -15,7 +15,6 @@ func InitServer() {
 		myLog.LogInfo.Println("Successful connection to the database")
 		// структура БД должна быть создана путем миграций при старте сервиса
 		database.DB.AutoMigrate(&models.Song{})
-		database.DB.Exec("ALTER TABLE songs RENAME COLUMN group TO MusicGroup")
 	}
 }
 
