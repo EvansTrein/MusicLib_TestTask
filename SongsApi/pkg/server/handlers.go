@@ -5,6 +5,7 @@ import (
 	myLog "SongsLib/SongsApi/pkg/logging"
 	"SongsLib/SongsApi/pkg/models"
 	"SongsLib/SongsApi/pkg/utils"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -122,10 +123,10 @@ func SongsHandler(ctx *gin.Context) {
 }
 
 func SongCoupletsHandler(ctx *gin.Context) {
-	var song models.Song  // структура для песни которую будем возвращать
-	id := ctx.Param("id") // получаем id из url
+	var song models.Song             // структура для песни которую будем возвращать
+	id := ctx.Param("id")            // получаем id из url
 	offsetStr := ctx.Query("offset") // получаем начальный параметр из запроса
-	limitStr := ctx.Query("limit") // получаем конечный параметр из запроса
+	limitStr := ctx.Query("limit")   // получаем конечный параметр из запроса
 
 	urlStr := ctx.Request.URL.String()
 	myLog.LogInfo.Println("Совершен запрос:", urlStr)
@@ -133,7 +134,7 @@ func SongCoupletsHandler(ctx *gin.Context) {
 	// выполяем запрос к БД для поиска нужной песни по id
 	if result := database.DB.Debug().Where("id = ?", id).First(&song); result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
-			ctx.JSON(404, gin.H{"error": "User not found"})
+			ctx.JSON(404, gin.H{"error": "Song not found"})
 		} else {
 			ctx.JSON(500, gin.H{"error": "Internal Server Error"})
 		}
@@ -189,11 +190,11 @@ func SongCoupletsHandler(ctx *gin.Context) {
 	if okStart && okEnd {
 		myLog.LogInfo.Println("Были запрошено 2 праметра, начало и конец")
 		switch {
-		case startValue + 1 > len(data):
+		case startValue+1 > len(data):
 			myLog.LogErr.Println("Были запрошены нивалидные номера куплетов")
 			ctx.JSON(400, gin.H{"error": "This song has fewer verses"})
 			return
-		case startValue + 1 > endValue:
+		case startValue+1 > endValue:
 			myLog.LogErr.Println("Были запрошены нивалидные номера куплетов")
 			ctx.JSON(400, gin.H{"error": "The starting verse number cannot be less than the ending verse number"})
 			return
@@ -209,7 +210,7 @@ func SongCoupletsHandler(ctx *gin.Context) {
 	} else if okStart && !okEnd {
 		myLog.LogInfo.Println("Было запрошено только с какого начинаем")
 		switch {
-		case startValue + 1 > len(data):
+		case startValue+1 > len(data):
 			myLog.LogErr.Println("Был запрошен нивалидный номер куплета")
 			ctx.JSON(400, gin.H{"error": "This song has fewer verses"})
 			return
@@ -238,9 +239,12 @@ func SongCoupletsHandler(ctx *gin.Context) {
 }
 
 func CreateSongHandler(ctx *gin.Context) {
+
+}
+
+func CreateDefaultSongHandler(ctx *gin.Context) {
 	var songDb models.Song     // переменная для хранения структуры, которую позже будем записывать в postgres
 	var req models.RequestData // переменная для запроса пришедшего на севрвер
-	// var songData models.SongData
 
 	urlStr := ctx.Request.URL.String()
 	myLog.LogInfo.Println("Совершен запрос:", urlStr)
@@ -276,7 +280,73 @@ func CreateSongHandler(ctx *gin.Context) {
 }
 
 func UpdateSongHandler(ctx *gin.Context) {
+	var song models.Song                             // структура для песни которую будем менять
+	var updDataSong models.SongData                  // структура для новых данных песни
+	id := ctx.Param("id")                            // получаем id из url
+	newValuesCheckData := make(map[string]string, 5) // мапа для хранения проверенных новых данных
 
+	// парсим данные из тела запроса
+	if err := ctx.BindJSON(&updDataSong); err != nil {
+		myLog.LogErr.Println("Недопустимые данные в теле запроса")
+		ctx.JSON(400, gin.H{"error": "Invalid data in the request body"})
+		return
+	}
+
+	myLog.LogInfo.Println("Пришли новые данные для песни:", updDataSong)
+
+	// Проверяем, что новые данные есть
+	checkData := reflect.ValueOf(updDataSong)
+	for i := 0; i < checkData.NumField(); i++ {
+		fieldData := checkData.Field(i).String()
+		if fieldData != "" {
+			newValuesCheckData[checkData.Type().Field(i).Name] = fieldData
+		}
+	}
+
+	myLog.LogInfo.Println("Новые данные после проверки:", newValuesCheckData)
+
+	// Если ВСЕ ключи в запросе были с пустыми значениями, выходим из функции
+	if len(newValuesCheckData) == 0 {
+		myLog.LogErr.Println("Не прислали данных для обновления")
+		ctx.JSON(400, gin.H{"error": "did not send the update data"})
+		return
+	}
+
+	// выполяем запрос к БД для поиска нужной песни по id, после того как убедились, что есть данные для изменения
+	if result := database.DB.Debug().Where("id = ?", id).First(&song); result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			ctx.JSON(404, gin.H{"error": "Song not found"})
+		} else {
+			ctx.JSON(500, gin.H{"error": "Internal Server Error"})
+		}
+		return
+	}
+
+	// меняем значения записи в БД, меняем те, которые есть
+	if newMusicGroup, okMusicGroup := newValuesCheckData["MusicGroup"]; okMusicGroup {
+		song.MusicGroup = newMusicGroup
+	}
+	if newSongName, okSongName := newValuesCheckData["SongName"]; okSongName {
+		song.SongName = newSongName
+	}
+	if newReleaseDate, okReleaseDate := newValuesCheckData["ReleaseDate"]; okReleaseDate {
+		song.ReleaseDate = newReleaseDate
+	}
+	if newText, okText := newValuesCheckData["Text"]; okText {
+		song.Text = newText
+	}
+	if newLink, okLink := newValuesCheckData["Link"]; okLink {
+		song.Link = newLink
+	}
+
+	// выполяем запрос к БД с отражением в консоли SQL запроса
+	if err := database.DB.Debug().Save(&song).Error; err != nil {
+		myLog.LogErr.Println("Не удалось сохранить новые данные в базе")
+		ctx.JSON(500, gin.H{"error": "Failed to save the new data in the database ", "textError": err.Error()})
+		return
+	} else {
+		ctx.JSON(200, gin.H{"message": "data successfully changed"})
+	}
 }
 
 func DeleteSongHandler(ctx *gin.Context) {
@@ -289,7 +359,7 @@ func DeleteSongHandler(ctx *gin.Context) {
 	// выполяем запрос к БД для поиска нужной песни по id
 	if result := database.DB.Where("id = ?", id).First(&song); result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
-			ctx.JSON(404, gin.H{"error": "User not found"})
+			ctx.JSON(404, gin.H{"error": "Song not found"})
 		} else {
 			ctx.JSON(500, gin.H{"error": "Internal Server Error"})
 		}
@@ -298,5 +368,5 @@ func DeleteSongHandler(ctx *gin.Context) {
 
 	// выполяем запрос к БД с отражением в консоли SQL запроса
 	database.DB.Unscoped().Delete(&song)
-	ctx.JSON(200, gin.H{"message": "user deleted successfully"})
+	ctx.JSON(200, gin.H{"message": "Song deleted successfully"})
 }

@@ -7,7 +7,7 @@ import (
 )
 
 func InitServer() {
-	// Database initialization
+	// Подключение к БД
 	errDatabase := database.InitDatabase()
 	if errDatabase != nil {
 		myLog.LogErr.Fatal("Database connection error: ", errDatabase)

@@ -20,6 +20,9 @@ func InitRotes() {
 	// Добавление новой песни в формате JSON через сторонние API
 	router.POST("/song", CreateSongHandler)
 
+	// Добавление новой песни default версия
+	router.POST("/songCreateDef", CreateDefaultSongHandler)
+
 	// Изменение данных песни
 	router.PUT("/song/:id/update", UpdateSongHandler)
 
