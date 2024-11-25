@@ -17,6 +17,23 @@ services:
         - db_SongsLib_vol:/var/lib/postgresql/data
       networks:
         - server_net
+  songbook:
+    container_name: songbook
+    build: ./songbook
+    depends_on:
+      - db_SongsLib
+    networks:
+      - server_net
+    ports:
+      - ${SONGBOOK_PORT}:${SONGBOOK_PORT}
+    environment:
+      SONGBOOK_PORT: ${SONGBOOK_PORT}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_NAME: ${POSTGRES_NAME}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_USE_SSL: ${POSTGRES_USE_SSL}
 
 volumes: 
   db_SongsLib_vol: {}

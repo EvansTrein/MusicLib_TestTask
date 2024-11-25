@@ -33,5 +33,5 @@ func InitRotes() {
 	// Сгенерировать сваггер на реализованное АПИ
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	router.Run(":" + envs.ServerEnvs.SERVER_PORT)
+	router.Run(":" + envs.ServerEnvs.SONGBOOK_PORT)
 }

@@ -507,6 +507,7 @@ func DeleteSongHandler(ctx *gin.Context) {
 	}
 
 	// выполяем запрос к БД с отражением в консоли SQL запроса
+	myLog.LogInfo.Println("Песня успешно удалена")
 	database.DB.Unscoped().Delete(&song)
 	ctx.JSON(200, gin.H{"message": "Song deleted successfully"})
 }
