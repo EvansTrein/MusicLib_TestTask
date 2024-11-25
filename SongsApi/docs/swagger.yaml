@@ -1,3 +1,46 @@
+definitions:
+  models.ErrResponce:
+    properties:
+      errorMessage:
+        type: string
+    type: object
+  models.RequestData:
+    properties:
+      group:
+        example: Muse
+        type: string
+      song:
+        example: Supermassive Black Hole
+        type: string
+    required:
+    - group
+    - song
+    type: object
+  models.ResponceData:
+    properties:
+      message:
+        type: string
+    type: object
+  models.SongData:
+    properties:
+      group:
+        example: Muse
+        type: string
+      link:
+        example: https://www.youtube.com/watch?v=Xsp3_a-PMTw
+        type: string
+      releaseDate:
+        example: 16.07.2006
+        type: string
+      song:
+        example: Supermassive Black Hole
+        type: string
+      text:
+        example: '"Ooh baby, don''t you know I suffer?\nOoh baby, can you hear me
+          moan?\nYou caught me under false pretenses\nHow long before you let me go?\n\nOoh\nYou
+          set my soul alight\nOoh\nYou set my soul alight"'
+        type: string
+    type: object
 externalDocs:
   description: OpenAPI
   url: https://swagger.io/resources/open-api/
@@ -6,8 +49,260 @@ info:
   contact:
     email: evanstrein@icloud.com
     name: Evans Trein
+    url: https://github.com/EvansTrein
   description: Тестовое задание от Effective Mobile
   title: "Онлайн библиотека песен\U0001F3B6"
   version: "0.1"
-paths: {}
+paths:
+  /song:
+    post:
+      consumes:
+      - application/json
+      description: создание новой песни с помощью запроса к стороннему API
+      parameters:
+      - description: Название группы и название песни
+        in: body
+        name: song
+        required: true
+        schema:
+          $ref: '#/definitions/models.RequestData'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.ResponceData'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrResponce'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrResponce'
+      summary: создает песню через API
+      tags:
+      - songs lib
+  /song/{id}/couplets:
+    get:
+      consumes:
+      - application/json
+      description: возвращает текст песни, разбитый на абзацы, с учетом параметров
+        offset и limit
+      parameters:
+      - description: song id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: start index
+        in: query
+        name: offset
+        type: integer
+      - description: end index
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Вернется слайсл строк
+          schema:
+            items:
+              items:
+                type: string
+              type: array
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrResponce'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrResponce'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrResponce'
+      summary: возвращает текст песни
+      tags:
+      - songs lib
+  /song/{id}/delete:
+    delete:
+      consumes:
+      - application/json
+      description: удаляет песню из базы данных
+      parameters:
+      - description: song id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ResponceData'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrResponce'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrResponce'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrResponce'
+      summary: удаляет песню из базы данных
+      tags:
+      - songs lib
+  /song/{id}/update:
+    put:
+      consumes:
+      - application/json
+      description: обновляет данные песни
+      parameters:
+      - description: song id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: new song data
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/models.SongData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ResponceData'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrResponce'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrResponce'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrResponce'
+      summary: обновляет данные песни
+      tags:
+      - songs lib
+  /songCreateDef:
+    post:
+      consumes:
+      - application/json
+      description: создаает песню по умолчанию в базе данных на основе данных из тела
+        запроса
+      parameters:
+      - description: Название группы и название песни
+        in: body
+        name: group
+        required: true
+        schema:
+          $ref: '#/definitions/models.RequestData'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.ResponceData'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrResponce'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrResponce'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrResponce'
+      summary: создает песню по умолчанию в базе данных
+      tags:
+      - songs lib
+  /songs:
+    get:
+      consumes:
+      - application/json
+      description: получение данных библиотеки с фильтрацией по всем полям и пагинацией
+      parameters:
+      - description: Offset for pagination
+        example: 1
+        in: query
+        name: offset
+        type: integer
+      - description: Limit for pagination
+        example: 4
+        in: query
+        name: limit
+        type: integer
+      - description: Filter by music group
+        example: '"Muse"'
+        in: query
+        name: group
+        type: string
+      - description: Filter by song name
+        example: '"Supermassive Black Hole"'
+        in: query
+        name: song
+        type: string
+      - description: Filter by release date
+        example: '"16.07.2006"'
+        in: query
+        name: releaseDate
+        type: string
+      - description: Filter by song text
+        in: query
+        name: text
+        type: string
+      - description: Filter by song link
+        example: '"https://www.youtube.com/watch?v=Xsp3_a-PMTw"'
+        in: query
+        name: link
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: вернется слайс с объектами
+          schema:
+            items:
+              items:
+                $ref: '#/definitions/models.SongData'
+              type: array
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrResponce'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrResponce'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrResponce'
+      summary: получение одной или нескольких песен
+      tags:
+      - songs lib
+schemes:
+- http
 swagger: "2.0"

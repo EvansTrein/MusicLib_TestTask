@@ -17,6 +17,23 @@ import (
 	"gorm.io/gorm"
 )
 
+// @Summary получение одной или нескольких песен
+// @Description получение данных библиотеки с фильтрацией по всем полям и пагинацией
+// @Tags songs lib
+// @Accept json
+// @Produce json
+// @Param offset query int false "Offset for pagination" example(1)
+// @Param limit query int false "Limit for pagination" example(4)
+// @Param group query string false "Filter by music group" example("Muse")
+// @Param song query string false "Filter by song name" example("Supermassive Black Hole")
+// @Param releaseDate query string false "Filter by release date" example("16.07.2006")
+// @Param text query string false "Filter by song text"
+// @Param link query string false "Filter by song link" example("https://www.youtube.com/watch?v=Xsp3_a-PMTw")
+// @Success 200 {array} []models.SongData "вернется слайс с объектами"
+// @Failure 400 {object} models.ErrResponce
+// @Failure 404 {object} models.ErrResponce
+// @Failure 500 {object} models.ErrResponce
+// @Router /songs [get]
 func SongsHandler(ctx *gin.Context) {
 	var songs []models.Song                      // переменная для возврата данных
 	var params = make(map[string]string)         // сюда соберем параметры из запроса для их дальнейшей проверки
@@ -32,7 +49,7 @@ func SongsHandler(ctx *gin.Context) {
 	if urlStr == "/songs" {
 		database.DB.Find(&songs)
 		myLog.LogInfo.Println("Запрошены все данные")
-		ctx.JSON(200, gin.H{"allData": songs})
+		ctx.JSON(200, gin.H{"data": songs})
 		return
 	}
 
@@ -126,6 +143,21 @@ func SongsHandler(ctx *gin.Context) {
 	}
 }
 
+// SongCoupletsHandler - возвращает текст песни, разбитый на абзацы, с учетом параметров offset и limit
+//
+// @Summary      возвращает текст песни
+// @Description  возвращает текст песни, разбитый на абзацы, с учетом параметров offset и limit
+// @Tags         songs lib
+// @Accept       json
+// @Produce      json
+// @Param        id   	 path      string  true  "song id"
+// @Param        offset  query     int     false "start index"
+// @Param        limit   query     int     false "end index"
+// @Success      200  {array}  []string "Вернется слайсл строк"
+// @Failure      400  {object}  models.ErrResponce
+// @Failure      404  {object}  models.ErrResponce
+// @Failure      500  {object}  models.ErrResponce
+// @Router       /song/{id}/couplets [get]
 func SongCoupletsHandler(ctx *gin.Context) {
 	var song models.Song             // структура для песни которую будем возвращать
 	id := ctx.Param("id")            // получаем id из url
@@ -242,11 +274,21 @@ func SongCoupletsHandler(ctx *gin.Context) {
 	}
 }
 
+// @Summary      создает песню через API
+// @Description  создание новой песни с помощью запроса к стороннему API
+// @Tags         songs lib
+// @Accept       json
+// @Produce      json
+// @Param        song  body      models.RequestData true "Название группы и название песни"
+// @Success      201   {object}  models.ResponceData
+// @Failure      400   {object}  models.ErrResponce
+// @Failure      500   {object}  models.ErrResponce
+// @Router       /song [post]
 func CreateSongHandler(ctx *gin.Context) {
 	var songDb models.Song             // переменная для хранения структуры, которую позже будем записывать в postgres
 	var req models.RequestData         // переменная для запроса пришедшего на севрвер
 	var dataFromAPI models.DataFromAPI // переменная для данных от стороннего API
-	urlAPI := "http://localhost:7000"  // адрес API для запроса 
+	urlAPI := "http://localhost:7000"  // адрес API для запроса
 
 	urlStr := ctx.Request.URL.String()
 	myLog.LogInfo.Println("Совершен запрос:", urlStr)
@@ -263,7 +305,7 @@ func CreateSongHandler(ctx *gin.Context) {
 
 	// при добавлении сделать запрос в АПИ, описанного сваггером
 	// задаем url для запроса, убираем пробелы если они есть
-	url := fmt.Sprintf("%s/info?group=%s&song=%s",urlAPI, url.QueryEscape(req.MusicGroup), url.QueryEscape(req.Song))
+	url := fmt.Sprintf("%s/info?group=%s&song=%s", urlAPI, url.QueryEscape(req.MusicGroup), url.QueryEscape(req.Song))
 
 	sendReqToAPI, err := http.Get(url)
 	myLog.LogInfo.Println("запрос к стороннему API", url)
@@ -302,9 +344,20 @@ func CreateSongHandler(ctx *gin.Context) {
 	}
 }
 
+// @Summary      создает песню по умолчанию в базе данных
+// @Description  создаает песню по умолчанию в базе данных на основе данных из тела запроса
+// @Tags         songs lib
+// @Accept       json
+// @Produce      json
+// @Param        group body models.RequestData true "Название группы и название песни"
+// @Success      201  {object}  models.ResponceData
+// @Failure      400  {object}  models.ErrResponce
+// @Failure      404  {object}  models.ErrResponce
+// @Failure      500  {object}  models.ErrResponce
+// @Router       /songCreateDef [post]
 func CreateDefaultSongHandler(ctx *gin.Context) {
 	var songDb models.Song     // переменная для хранения структуры, которую позже будем записывать в postgres
-	var req models.RequestData // переменная для запроса пришедшего на севрвер
+	var req models.RequestData // переменная для запроса пришедшего на сервер
 
 	urlStr := ctx.Request.URL.String()
 	myLog.LogInfo.Println("Совершен запрос:", urlStr)
@@ -318,6 +371,8 @@ func CreateDefaultSongHandler(ctx *gin.Context) {
 	} else {
 		myLog.LogInfo.Printf("на сервер пришли данные - Group: %s, Song: %s", req.MusicGroup, req.Song)
 	}
+
+	myLog.LogInfo.Println("Пришли данные в теле запрсоа:", req)
 
 	// сохраняем данные в поля таблицы
 	songDb.MusicGroup = req.MusicGroup
@@ -339,6 +394,20 @@ func CreateDefaultSongHandler(ctx *gin.Context) {
 	}
 }
 
+// UpdateSongHandler - обновляет данные песни
+//
+// @Summary      обновляет данные песни
+// @Description  обновляет данные песни
+// @Tags         songs lib
+// @Accept       json
+// @Produce      json
+// @Param        id   path      string  true  "song id"
+// @Param        data body      models.SongData  true  "new song data"
+// @Success      200  {object}  models.ResponceData
+// @Failure      400  {object}  models.ErrResponce
+// @Failure      404  {object}  models.ErrResponce
+// @Failure      500  {object}  models.ErrResponce
+// @Router       /song/{id}/update [put]
 func UpdateSongHandler(ctx *gin.Context) {
 	var song models.Song                             // структура для песни которую будем менять
 	var updDataSong models.SongData                  // структура для новых данных песни
@@ -409,6 +478,17 @@ func UpdateSongHandler(ctx *gin.Context) {
 	}
 }
 
+// @Summary      удаляет песню из базы данных
+// @Description  удаляет песню из базы данных
+// @Tags         songs lib
+// @Accept       json
+// @Produce      json
+// @Param        id   path      string  true  "song id"
+// @Success      200  {object}  models.ResponceData
+// @Failure      400  {object}  models.ErrResponce
+// @Failure      404  {object}  models.ErrResponce
+// @Failure      500  {object}  models.ErrResponce
+// @Router       /song/{id}/delete [delete]
 func DeleteSongHandler(ctx *gin.Context) {
 	var song models.Song  // структура для песни которую будем удалять
 	id := ctx.Param("id") // получаем id из url
