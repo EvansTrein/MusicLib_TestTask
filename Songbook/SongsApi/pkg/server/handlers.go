@@ -310,7 +310,7 @@ func CreateSongHandler(ctx *gin.Context) {
 	sendReqToAPI, err := http.Get(url)
 	myLog.LogInfo.Println("запрос к стороннему API", url)
 	if err != nil {
-		myLog.LogErr.Println("Не удалось отправить запрос к стороннему API")
+		myLog.LogErr.Println("Не удалось отправить запрос к стороннему API:", err)
 		ctx.JSON(500, gin.H{"error": "Failed to send request to third party API"})
 		return
 	}
